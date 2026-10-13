@@ -1,0 +1,41 @@
+# Kaizen Ticketing's build of the grate tool, until grate-devs releases BigQuery support.
+#
+# This workflow lives only on the kaizen branch of kaizenticketing/grate, never upstream. Push a tag such as
+# 2.1.7-kaizen.1 on that branch: it packs the tool as build.yml does, with the tag as the package version, and
+# pushes it to the kaizenticketing GitHub Packages feed.
+name: Kaizen package
+
+on:
+  push:
+    tags:
+      - '*-kaizen.*'
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  package:
+    name: Pack and push the grate tool
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v7
+    - name: Setup .NET 10
+      uses: actions/setup-dotnet@v6
+      with:
+        dotnet-version: 10.0.x
+    - name: Restore dependencies
+      run: dotnet restore
+    - name: Pack
+      # the same pack as build.yml; the assembly version is the tag without its -kaizen.N suffix
+      run: >
+        dotnet pack ./src/grate/grate.csproj
+        -p:SelfContained=true -p:PackAsTool=true -p:PackageOutputPath=/tmp/grate/nupkg
+        -p:version=${GITHUB_REF_NAME%%-*} -p:PackageVersion=${GITHUB_REF_NAME}
+        -p:RepositoryUrl=${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}
+    - name: Push to GitHub Packages
+      run: >
+        dotnet nuget push /tmp/grate/nupkg/*.nupkg
+        --source https://nuget.pkg.github.com/${GITHUB_REPOSITORY_OWNER}/index.json
+        --api-key ${{ secrets.GITHUB_TOKEN }}
