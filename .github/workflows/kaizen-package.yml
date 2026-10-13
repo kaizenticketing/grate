@@ -28,10 +28,12 @@ jobs:
     - name: Restore dependencies
       run: dotnet restore
     - name: Pack
-      # the same pack as build.yml; the assembly version is the tag without its -kaizen.N suffix
+      # as build.yml, but framework-dependent and net10.0 only: build.yml's SelfContained=true makes the tool need the
+      # runtime patch of the machine that packed it (10.0.12 on GitHub's runners), which a developer machine may not
+      # have. The assembly version is the tag without its -kaizen.N suffix.
       run: >
         dotnet pack ./src/grate/grate.csproj
-        -p:SelfContained=true -p:PackAsTool=true -p:PackageOutputPath=/tmp/grate/nupkg
+        -p:PackAsTool=true -p:TargetFrameworks=net10.0 -p:PackageOutputPath=/tmp/grate/nupkg
         -p:version=${GITHUB_REF_NAME%%-*} -p:PackageVersion=${GITHUB_REF_NAME}
         -p:RepositoryUrl=${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}
     - name: Push to GitHub Packages
