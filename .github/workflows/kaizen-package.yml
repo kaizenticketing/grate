@@ -1,7 +1,7 @@
 # Kaizen Ticketing's build of the grate tool, until grate-devs releases BigQuery support.
 #
 # This workflow lives only on the kaizen branch of kaizenticketing/grate, never upstream. Push a tag such as
-# 2.1.7-kaizen.1 on that branch: it packs the tool as build.yml does, with the tag as the package version, and
+# 2.3.1-kaizen.1 on that branch: it packs the tool as build.yml does, with the tag as the package version, and
 # pushes it to the kaizenticketing GitHub Packages feed.
 name: Kaizen package
 
@@ -21,10 +21,11 @@ jobs:
 
     steps:
     - uses: actions/checkout@v7
-    - name: Setup .NET 10
+    # the SDK global.json names (11 since the merge of upstream main), which still packs the tool for net10.0
+    - name: Setup the .NET SDK
       uses: actions/setup-dotnet@v6
       with:
-        dotnet-version: 10.0.x
+        global-json-file: global.json
     - name: Restore dependencies
       run: dotnet restore
     - name: Pack
