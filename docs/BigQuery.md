@@ -48,10 +48,21 @@ dataset at a time.
   script stay done. Write every statement so that it is safe to run again: `CREATE TABLE IF NOT EXISTS`,
   `ALTER TABLE ... ADD COLUMN IF NOT EXISTS`, `CREATE OR REPLACE VIEW`.
 * **Unqualified table names resolve to the migrated dataset**, as it is the jobs' default dataset. A view body is
-  stored as written, though, so qualify the tables a view reads: `{{DatabaseName}}.my_table`.
-* **Rate limits.** A table takes 5 metadata changes (DDL, and DML on grate's tables) per 10 seconds. grate tries a job
-  again, with a back-off, when BigQuery answers `rateLimitExceeded` or `backendError`, but prefer one `ALTER TABLE` per
-  table per script, listing every new column.
+  stored as written, though, so qualify the tables a view reads: `{% raw %}{{DatabaseName}}{% endraw %}.my_table`.
+  Scripts in `dropDatabase`, `createDatabase` and `alterDatabase` are the exception: they can run before the dataset
+  exists, so they have no default dataset, and every table in them needs its dataset.
+* **Rate limits.** A table takes 5 metadata changes per 10 seconds. DDL counts toward that limit; DML, such as grate's
+  writes to its own tables, does not - it has [limits of its own](https://docs.cloud.google.com/bigquery/docs/troubleshoot-quotas).
+  Prefer one `ALTER TABLE` per table per script, listing every new column.
+* **A failed script is not run again.** grate starts each script with a request id of its own, which each job also
+  carries as the label `grate_request_id`. When no answer arrives, or BigQuery turns the request away (HTTP 429),
+  grate sends the request again with a back-off, under the same id, which BigQuery takes as the same request. When
+  BigQuery answers with an error, grate does not send the script again, as the statements before the failure may have
+  run: fix the cause, and run grate again. If BigQuery fails while it answers (HTTP 5xx), or no answer ever arrives,
+  grate cannot tell whether the script ran: it fails, naming the request id, so find the job in BigQuery first.
+* **Timeouts.** `--commandtimeout` (and `--admincommandtimeout` for the admin scripts) limits how long grate waits for a
+  job; 0 waits without a limit. When the time is up, grate asks BigQuery to cancel the job and fails, naming the job.
+  Cancelling is best effort, so the job may still finish: check it in BigQuery before you run grate again.
 * **Not supported:** `--restore`, and the database user and permission scripts that some other databases use.
 
 ## Trying it locally
